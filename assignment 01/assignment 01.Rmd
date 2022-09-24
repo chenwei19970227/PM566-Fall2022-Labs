@@ -1,0 +1,238 @@
+---
+title: "assinment 01"
+author: "chen wei"
+date: "2022-09-23"
+output: github_document
+always_allow_html : true
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## R Markdown
+```{r}
+library(lubridate)
+library(tidyverse)
+library(data.table)
+```
+## STEP 1-1.Read in the data
+First download and then read in with data.
+```{r}
+pm2.5_2019 <- data.table::fread("ad_viz_plotval_data-2019.csv")
+pm2.5_2004 <- data.table::fread("ad_viz_plotval_data-2004.csv")
+```
+##STEP1-2. Check the dimensions, headers, footers. How many columns, rows are there?
+```{r}
+dim(pm2.5_2004)
+head(pm2.5_2004)
+tail(pm2.5_2004)
+```
+```{r}
+dim(pm2.5_2019)
+head(pm2.5_2019)
+tail(pm2.5_2019)
+```
+also, we take a look of the varaible
+```{r}
+str(pm2.5_2004)
+```
+```{r}
+str(pm2.5_2019)
+```
+##STEP 1-3 Check for any data issues, particularly in the key variable we are analyzing.
+```{r}
+table(pm2.5_2004$Date)
+table(pm2.5_2004$`Daily Mean PM2.5 Concentration`)
+summary(pm2.5_2004$Date)
+summary(pm2.5_2004$`Daily Mean PM2.5 Concentration`)
+```
+```{r}
+
+table(pm2.5_2019$`Daily Mean PM2.5 Concentration`)
+summary(pm2.5_2019$Date)
+summary(pm2.5_2019$`Daily Mean PM2.5 Concentration`)
+```
+after checking the variable, there are some variable which is even smaller than 0 , which does not make any sense. so we delete the negative number from both dataset.
+```{r}
+pm2.5_2019 <- pm2.5_2019[`Daily Mean PM2.5 Concentration`>=0] 
+summary(pm2.5_2019$`Daily Mean PM2.5 Concentration`)
+```
+```{r}
+pm2.5_2004 <- pm2.5_2004[`Daily Mean PM2.5 Concentration`>=0] 
+summary(pm2.5_2004$`Daily Mean PM2.5 Concentration`)
+```
+
+#summary
+due to the summary of two dataset of different years, first, we found out there are some negative number exist between 2 dataset, which is impossible to have negative number in concentration number. So removing negative number of concentration is necessary. Second, che2004's Daily mean of pm2.5 concentration has a bigger range, higher median than the 2019 daily mean of pm2.5 concentration. which means that the Dailly pm2.5 concentration decreased from 2004 to 2019.
+##STEP 2.Combine the two years of data into one data frame. Use the Date variable to create a new column for year, which will serve as an identifier
+```{r}
+total<-rbind(pm2.5_2004,pm2.5_2019)
+```
+
+```{r}
+total<-mutate(total,year=(rep(c(2004,2019),c(nrow(pm2.5_2004),nrow(pm2.5_2019)))))
+total<-as.data.table(total)
+```
+##STEP3.Create a basic map in leaflet() that shows the locations of the sites (make sure to use different colors for each year). Summarize the spatial distribution of the monitoring sites.
+```{r}
+#generating a color palette
+library(leaflet)
+year.pal <- colorNumeric(c('darkgreen','goldenrod'), domain=total$year)
+year.pal
+```                                                                                                                                                                                                      
+```{r}
+leaflet(total) %>%
+  addProviderTiles('OpenStreetMap') %>% 
+  addCircles(lat=~SITE_LATITUDE,lng=~SITE_LONGITUDE, 
+         ,color=~year.pal(year),
+               opacity=1, fillOpacity=1, radius=100)
+
+```
+#summary
+the figure above shows that the yellow spot has much more number  and density than the green spot. and also spreading in a much wider range than the green spot. 
+##STEP 4. Check for any missing or implausible values of PM in the combined dataset. Explore the proportions of each and provide a summary of any temporal patterns you see in these observations.
+before we did a further explortary analysis of data, i found out that there is a huge number difference between 2004 and 2009, which is not very good.after checking all the variable, 2019 has slightly more COUNTY, and also site number than 2004, and 2004 has one more specific date than 2009(feburary 29th,2004).So for lining it as possible as we can. i remove the "COUNTY" from 2019 dataset that 2004 does not have. and also calculating the average from 2 dataset.
+```{r}
+pm2.5_2004<-pm2.5_2004[pm2.5_2004[["Date"]] != "02/29/2004", ]
+res1<-semi_join(total, pm2.5_2004, by = "COUNTY")
+data_2004<-subset(res1,year %in% c("2004"))
+data_2019<-subset(res1,year %in% c("2019"))
+#calculate the average
+total_avg<-total[,.(
+  `Daily Mean PM2.5 Concentration`=mean(`Daily Mean PM2.5 Concentration`,na.rm=T)
+),by ='year']
+total_avg
+```
+
+#summary
+in this part of the data, we still can see that 2004 's daily average mean pm2.5 concentration is higher than 2019.and by calculation, we can see that  1.07% of data from 2004 is removd due to negative number of daily mean pm2.5 concentration. there are 0.53percent of 2019 Origal data was removed due to the same reason. IN TOTAL, THERE ARE 2.35% of data was removed.
+```{r}
+#calculate the average by county
+COUNTY2004_avg<-data_2004[,.(
+  `Daily Mean PM2.5 Concentration`=mean(`Daily Mean PM2.5 Concentration`,na.rm=T)
+),by ='COUNTY']
+COUNTY2004_avg
+COUNTY2019_avg<-data_2019[,.(
+  `Daily Mean PM2.5 Concentration`=mean(`Daily Mean PM2.5 Concentration`,na.rm=T)
+),by ='COUNTY']
+COUNTY2019_avg
+
+```
+#summary 
+  for this part of data, since we found out that the pm2.5_2004 only have 47 county but pm2.5_2019 have 51,and also for more efficient lining with 2004 data, i delete all of the rows "02/29/2004" in 2004 . also, for making sure lineing, i also removed the 4 COUNTY,now i kept about 95% of data.
+```{r}
+#calculate the average by site in Los Angles
+#create 2 subset contains COUNTY=los Angles only
+la2004 <- data.table::fread("la2004.csv")
+la2019 <- data.table::fread("la2009.csv")
+la2004<-la2004[la2004[["Date"]] != "02/29/2004", ]
+la<-rbind(la2004,la2019)
+la<-mutate(la,year=(rep(c(2004,2019),c(nrow(la2004),nrow(la2019)))))
+res2<-semi_join(la, la2004, by = "Site Name")
+total<-as.data.table(total)
+la2004<-subset(res2,year %in% c("2004"))
+la2019<-subset(res2,year %in% c("2019"))
+la2004_avg<-la2004[,.(
+  `Daily Mean PM2.5 Concentration`=mean(`Daily Mean PM2.5 Concentration`,na.rm=T)
+),by ='Site Name']
+la2004_avg
+la2019_avg<-la2019[,.(
+  `Daily Mean PM2.5 Concentration`=mean(`Daily Mean PM2.5 Concentration`,na.rm=T)
+),by ='Site Name']
+la2019_avg
+
+```  
+#summary
+for this part of data, since we found out that the 2004 only have 8 sites but 2019 have 12,and also for more efficient lining with 2004 data, i delete all of the rows "02/29/2004" in 2004 . also, for making sure lineing, i also removed the 4 site
+##STEP 5.Explore the main question of interest at three different spatial levels. Create exploratory plots (e.g. boxplots, histograms, line plots) and summary statistics that best suit each level of data. Be sure to write up explanations of what you observe in these data.
+#1.by state
+```{r}
+#histogram
+pm2.5.c<-(total$`Daily Mean PM2.5 Concentration`)
+class(total$year) = "character"
+ggplot(total, aes(x = pm2.5.c)) +
+  geom_histogram(aes(color = year, fill = year), 
+                position = "identity", bins = 30, alpha = 0.4) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800"))
+```
+```{r}
+#scatterplot
+ggplot(data = total) +
+geom_point(mapping = aes(x = SITE_LATITUDE, y = pm2.5.c, color = year))
+
+```
+```{r}
+#boxplot
+total[!is.na(year)] %>%
+ggplot()+
+geom_boxplot(mapping=aes(x=year, y=pm2.5.c, fill=year))
+```
+
+```{r}
+tapply(total$`Daily Mean PM2.5 Concentration`, total$year, summary) 
+```
+#summaryL 
+those above are calcuted the total data, there is an issue exist that the 2019 data has much more observation than 2004, so i decided to used bar chart and average. 
+```{r}
+as.character(total_avg$year)
+mean<-(total_avg$`Daily Mean PM2.5 Concentration`)
+ggplot(total_avg, aes(x=year, y=mean )) + 
+  geom_bar(stat = "identity")
+
+```
+#conclusion:
+  by the state level, we can see that the daily concentrations of PM (particulate matter air pollution with aerodynamic diameter less than 2.5 m) have decreased in average level in California over the last 15 years (from 2004 to 2019) since the barplot shows 2004 HAS A LONGER BAR THAN 2019
+#2.BY COUNTY
+```{r}
+COUNTY2004_avg$year<-2004
+COUNTY2019_avg$year<-2019
+COUNTY_avg<-rbind(COUNTY2004_avg,COUNTY2019_avg)
+as.character(COUNTY_avg$year)
+county_mean<-(COUNTY_avg$`Daily Mean PM2.5 Concentration`)
+#boxplot
+COUNTY_avg[!is.na(year)] %>%
+ggplot()+
+geom_boxplot(mapping=aes(group=year,x=year, y=county_mean,fill =year))
+```
+
+#summary explanation
+by this figure above, it is very easy to see daily concentrations of PM (particulate matter air pollution with aerodynamic diameter less than 2.5 m) have decreased in California over the last 15 year , the boxplot does provide the most information about median,q1,iqr,q3,range and outlier.   just in case, i did a paired t test and summary statistic
+
+```{r}
+COUNTY_avg %>%                               
+  group_by(year) %>%
+    summarize(min = min(COUNTY_avg$county_mean),
+            q1 = quantile(county_mean, 0.25),
+            median = median(county_mean),
+            mean = mean(county_mean),
+            q3 = quantile(county_mean, 0.75),
+            max = max(county_mean))
+```
+
+#3.by site in Los Angeles
+```{r}
+la2004_avg$year<-2004
+la2019_avg$year<-2019
+la_avg<-rbind(la2004_avg,la2019_avg)
+as.character(la_avg$year)
+la_mean<-(la_avg$`Daily Mean PM2.5 Concentration`)
+#boxplot
+la_avg[!is.na(year)] %>%
+ggplot()+
+geom_boxplot(mapping=aes(group=year,x=year, y=la_mean,fill =year))
+```
+#summary
+ the boxplot from state, county, site in la shows a bigger and bigger decreased 2004 to 2019. box plot shows a more detailed 5 number summary than other.
+```{r}
+la_avg %>%                               
+  group_by(year) %>%
+    summarize(min = min(la_avg$la_mean),
+            q1 = quantile(la_mean, 0.25),
+            median = median(la_mean),
+            mean = mean(la_mean),
+            q3 = quantile(la_mean, 0.75),
+            max = max(la_mean))
+```
+##conclusion for question
+based on the comparstion between avarage in STATES, in COUNTY, in Site from Los Angles, main question daily concentrations of PM2.5 (particulate matter air pollution with aerodynamic diameter less than 2.5 m) have decreased in California over the last 15 years (from 2004 to 2019).
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
