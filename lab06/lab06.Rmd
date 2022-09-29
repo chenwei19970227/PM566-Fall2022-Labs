@@ -1,7 +1,7 @@
 ---
-title: "lab05-week5"
+title: "lab06-week6"
 author: "chen wei"
-date: "2022-09-22"
+date: "2022-09-28"
 output: github_document
 always_allow_html: true
 ---
@@ -11,159 +11,135 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## R Markdown
-```{r}
-library(lubridate)
-library(tidyverse)
-library(data.table)
-library(dtplyr)
+```{r install_libaries}
 library(dplyr)
+library(tidytext)
+library(tidyverse)
 ```
 ## STEP 1. Read in the data
 First download and then read in with data.
 ```{r}
-if(!file.exists("met_all.gz")){
-download.file("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/02_met/met_all.gz", "met_all.gz", method="libcurl", timeout = 60)
+if (!file.exists("mtsamples.csv")) {
+  download.file("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/00_mtsamples/mtsamples.csv", 
+                "mtsamples.csv", method="libcurl", timeout = 60)
 }
-met <- data.table::fread("met_all.gz")
+
+mts <- read.csv("mtsamples.csv")
+str(mts)
 
 ```
-Remove temperature less than -17C and change elev 9999 to missing value code
 ```{r}
-met <- met[temp>-17][elev == 9999.0,elev :=NA]
+mts <- as_tibble(mts)
+mts
 ```
-read in station data
-```{r}
-# Download the data
-stations <- fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
-stations[, USAF := as.integer(USAF)]
-```
-```{r}
-# Dealing with NAs and 999999
-stations[, USAF   := fifelse(USAF == 999999, NA_integer_, USAF)]
-stations[, CTRY   := fifelse(CTRY == "", NA_character_, CTRY)]
-stations[, STATE  := fifelse(STATE == "", NA_character_, STATE)]
-```
-```{r}
-# Selecting the three relevant columns, and keeping unique records
-stations <- unique(stations[, list(USAF, CTRY, STATE)])
-```
-```{r}
-# Dropping NAs
-stations <- stations[!is.na(USAF)]
-```
-```{r}
-# Removing duplicates
-stations[, n := 1:.N, by = .(USAF)]
-stations <- stations[n == 1,][, n := NULL]
-```
-merge the darta MET WITH STATION
-```{r}
-met<-
-merge(
-  # Data
-  x     = met,      
-  y     = stations, 
-  # List of variables to match
-  by.x  = "USAFID",
-  by.y  = "USAF", 
-  # Which obs to keep?
-  all.x = TRUE,      
-  all.y = FALSE
-  ) 
-nrow(met)
-```
-#QUESTION 1.representation statition for the US
-compute mean temperature, wind speed and atmopheric pressure for each weather stationland pick the weather station with the average value closet to the median for the US
-```{r}
-station_averages <-
-  met[ , .(
-    temp      =mean(temp, na.rm=T),
-    wind.sp   =mean(wind.sp, na.rm=T),
-    atm.press =mean(atm.press,na.rm=T)
-  ),by = USAFID]
-```
-the above computer the mean by weather station.now let's compute the median value for each varaible.
-```{r}
-stmeds <- station_averages[, .(
-  temp50    =median(temp,na.rm = T),
-  windsp50  =median(wind.sp,na.rm =T ),
-  atmpress50=median(atm.press,na.rm = T)
-)]
-stmeds
-```
+##QUESTION 1:: What specialties do we have?
+We can use count() from dplyr to figure out how many different catagories do we have?
+```{r medical-specialty}
+specialties <-
+  mts %>%
+  count(medical_specialty)
+specialties %>%
+  arrange(desc(n)) %>%
+  knitr::kable()
 
-a helpful function we might want to use 'which,min()'.
-```{r}
-station_averages[ ,
-                  temp_dist50:=abs(temp-stmeds$temp50)][order(temp_dist50)]
 ```
-Let's use the which,min
-```{r}
-station_averages[which.min(temp_dist50)]
+there are 'r nrows(specialties)' medical specialties.
+```{r barplot-of-specialty-counts}
+specialties %>%
+  top_n(10) %>%
+  ggplot(aes(x = n, y = fct_reorder(medical_specialty,n))) + 
+   geom_col()
 ```
-It matches the result above
-##Question 2:Representationve station per state
-Just like the previous question, you are asked to identify what is the most representative, the median,station per state. This time,instead of looking at one varable at a time, lookat the euclidean distance.If multiple stations show inthe median, select the one located at the lowest latitude.
-```{r}
-station_averages <- 
-     met[ , .(
-       temp      = mean(temp, na.rm=T),
-       wind.sp   = mean(wind.sp, na.rm=T),
-       atm.press = mean(atm.press,na.rm=T)
-     ), by = .(USAFID,STATE)]
-head(station_averages)
-```
-```{r}
-statemeds<- station_averages[ , .(
-           temp50    = median(temp, na.rm=T), 
-           wind.sp50 = median(wind.sp, na.rm=T)
-            ), by = STATE]
-statemeds
-```
-```{r}
-station_averages <- 
-  merge(
-  x = station_averages,
-  y = statemeds,
-  by.x = "STATE",
-  by.y = "STATE",
-  all.x = TRUE,
-  all.y = FALSE
-)
-```
-```{r}
-station_averages[ , temp_dist_state50   := temp - temp50]
-station_averages[ , windsp_dist_state50 := wind.sp - wind.sp50] 
-station_averages
-```
-```{r}
-station_averages[ , eucdist := temp_dist_state50^2 +
-                                windsp_dist_state50^2]
-```
-```{r}
-repstation <- station_averages[ , .(
-                    eucdist = min(eucdist, na.rm=T))
-                  , by=STATE]
-```
-```{r}
-merge(
-  x = station_averages,
-  y = repstation,
-  by.x = c("eucdist","STATE"),
-  by.y = c("eucdist","STATE"),
-  all.x = FALSE,
-  all.y = TRUE
-)
-```
+The distribution is not at all uniform.
+##QUESTION 2
+Tokenize the the words in the transcription column
+Count the number of times each token appears
+Visualize the top 20 most frequent words
 
-## R Markdown
+```{r token-transcription, cache=TRUE}
+mts %>%
+  unnest_tokens(word,transcription ) %>%
+#anti_join(stop_words,by =c("word")) %>%
+  count(word,sort=TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(word, n))) +
+  geom_col()
+```
+there are a lot of stop words here, non-specific to medical text . We do see "patient"
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+##QUESTION 3
+Redo visualization but remove stopwords before
+Bonus points if you remove numbers as well
+```{r}
+mts %>%
+  unnest_tokens(word, transcription) %>%
+  count(word, sort = TRUE) %>%
+  anti_join(stop_words, by = c("word")) %>%
+  # use regular expression to filter out numbers
+  filter( !grepl(pattern = "^[0-9]+$", x = word)) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(word, n))) +
+  geom_col()
+```
+Removing the stopwords and numbers gives us a much better idea of what the text is about.
+##QUESTION 4
+repeat question 2, but this time tokenize into bi-grams.
+```{r}
+mts %>%
+  unnest_ngrams(bigram, transcription, n=2) %>%
+  count(bigram, sort = TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(bigram, n))) +
+  geom_col()
+```
+```{r}
+mts %>%
+  unnest_ngrams(trigram, transcription, n=3) %>%
+  count(trigram, sort = TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(trigram, n))) +
+  geom_col()
+```
+Top 20 trigrams seemed to return a few more medical word group than bigrams.
+##QUESTION 5
+Using the results you got from questions 4. Pick a word and count the words that appears after and before it.
+```{r bigrams-transcription-nextword,cache=TRUE}
+ptbigram <-
+  mts %>%
+  unnest_ngrams(bigram, transcription, n=2) %>%
+  separate(bigram,into = c("word1", "word2"), sep = " ") %>%
+  select(word1, word2) %>%
+  filter(word1 == "patient" | word2 == "patient")
+```
+Words appearing before patient:
+```{r}
+ptbigram %>%
+  filter(word2=="patient") %>%
+  count(word1, sort=TRUE) %>%
+  anti_join(stop_words, by = c("word1" = "word")) %>%
+  top_n(10) %>%
+knitr::kable()
+```
+Find the words following patient:
+```{r}
+ptbigram %>%
+  filter(word1=="patient") %>%
+  count(word2, sort=TRUE) %>%
+  anti_join(stop_words, by = c("word2" = "word")) %>%
+  top_n(10) %>%
+knitr::kable()
+```
+##QUESTION 6
+Which words are most used in each of the specialties. you can use group_by() and top_n() from dplyr to have the calculations be done within each specialty. Remember to remove stopwords. How about the most 5 used words?
+```{r top}
+mts %>%
+  unnest_tokens(word, transcription) %>%
+  group_by(medical_specialty) %>% 
+  count(word, sort = TRUE) %>%
+  filter( !(word %in% stop_words$word) & !grepl(pattern = "^[0-9]+$", x = word)) %>%
+  top_n(5, n) %>%
+  arrange(medical_specialty, desc(n)) %>%
+ knitr::kable()
 ```
 
 
