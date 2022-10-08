@@ -1,0 +1,291 @@
+---
+title: "assingment 02"
+author: "chen wei"
+date: "2022-10-03"
+output: github_document
+always_allow_html : true
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## R Markdown
+```{r}
+library(lubridate)
+library(tidyverse)
+library(data.table)
+library(dplyr)
+library(dbplyr)
+library(ggplot2)
+```
+## Data Wrangling
+# STEP 0.Read in the data
+First download and then read in with data.
+```{r}
+individual <- data.table::fread("chs_individual.csv")
+regional <- data.table::fread("chs_regional.csv")
+```
+##STEP 0.Merge the data 
+```{r}
+total<-
+merge(
+  # Data
+  x     = individual,      
+  y     = regional, 
+  # List of variables to match
+  by.x  = "townname",
+  by.y  = "townname", 
+  # Which obs to keep?
+  all.x = TRUE,      
+  all.y = FALSE
+  ) 
+nrow(total)
+```
+#1 After merging the data, make sure you don’t have any duplicates by counting the number of rows. Make sure it matches.
+```{r}
+#a simplic check
+dim(total)
+head(total)
+tail(total)
+str(total)
+```
+```{r}
+# Dealing with NAs and 999999
+total[, sid   := fifelse(sid == 999999, NA_integer_, sid)]
+total[, townname   := fifelse(townname == "", NA_character_, townname)]
+```
+
+
+```{r}
+# Removing duplicates
+total[, n := 1:.N, by = .(sid)]
+total <- total[n == 1,][, n := NULL]
+```
+```{r}
+#removing the rows with second_hand and gas_stove as "NA" 
+total<-total[, smoke   := fifelse(total$smoke == "", NA_integer_, smoke)]
+total<-total[, STATE  := fifelse(total$gasstove == "", NA_integer_, gasstove)]
+total <- total[!is.na(gasstove)]
+total <- total[!is.na(smoke)]
+```
+
+```{r}
+#calculate the mean of the "males" and "hispanic"
+  total<-total[, bmi_imp := fcoalesce(bmi, mean(bmi, na.rm = TRUE)),
+    by = .(male,hispanic)]
+```
+```{r}
+  total<-total[, fev_imp:= fcoalesce(fev, mean(fev, na.rm = TRUE)),
+    by = .(male,hispanic)]
+```
+
+```{r}
+ sum(is.na(total$bmi_imp))
+sum(is.na(total$fev_imp))
+```
+#2 Create a new categorical variable named “obesity_level” using the BMI measurement (underweight BMI<14; normal BMI 14-22; overweight BMI 22-24; obese BMI>24). To make sure the variable is rightly coded, create a summary table that contains the minimum BMI, maximum BMI, and the total number of observations per category.
+```{r}
+
+total<-total[,obesity_level :=fifelse(bmi_imp < 14,"underweight",
+                  fifelse(bmi_imp<=22 ,"normal",
+                  fifelse(bmi_imp<=24 ,"overweight","obese")))
+        ]
+min(total$bmi_imp)
+max(total$bmi_imp)
+table(total$obesity_level)
+total
+```
+#3 Create another categorical variable named “smoke_gas_exposure” that summarizes “Second Hand Smoke” and “Gas Stove.” The variable should have four categories in total.
+```{r}
+total<-total[,smoke_gas_exposure :=fifelse(smoke==1 & gasstove==1,"SG",
+                  fifelse(smoke==0  & gasstove ==0,"NN",
+                  fifelse(smoke==1  & gasstove ==0,"SN","NG" )))
+        ]
+table(total$smoke_gas_exposure)
+total
+```
+#4 Create four summary tables showing the average (or proportion, if binary) and sd of “Forced expiratory volume in 1 second (ml)” and (proportion)asthma indicator by town, sex, obesity level, and “smoke_gas_exposure.”
+
+```{r}
+#townname
+townname_avg1<-total%>%count(townname)
+townname_avg2<-
+    total[ , .(
+    fev_mean      =mean(fev_imp, na.rm=T),
+    sd       =sd(fev, na.rm=T),
+    asthma_number=sum(asthma,na.rm = T),
+    asthma_proprtion  =sum(asthma,na.rm = T)/(sum(asthma,na.rm = T)+sum(!is.na(asthma)))
+  ),by = townname]
+townname_avg<-
+merge(
+  # Data
+  x     = townname_avg1,      
+  y     = townname_avg2, 
+  # List of variables to match
+  by.x  = "townname",
+  by.y  = "townname", 
+  # Which obs to keep?
+  all.x = TRUE,      
+  all.y = FALSE
+  ) 
+```
+```{r}
+#sex
+sex_avg1<-total%>%count(male)
+sex_avg2<-
+    total[ , .(
+    fev_mean      =mean(fev_imp, na.rm=T),
+    sd       =sd(fev, na.rm=T),
+    asthma_number=sum(asthma,na.rm = T),
+    asthma_proprtion  =sum(asthma,na.rm = T)/(sum(asthma,na.rm = T)+sum(!is.na(asthma)))
+  ),by = male]
+sex_avg<-
+merge(
+  # Data
+  x     = sex_avg1,      
+  y     = sex_avg2, 
+  # List of variables to match
+  by.x  = "male",
+  by.y  = "male", 
+  # Which obs to keep?
+  all.x = TRUE,      
+  all.y = FALSE
+  ) 
+```
+```{r}
+#obesity_level
+obesity_avg1<-total%>%count(obesity_level)
+obesity_avg2<-
+    total[ , .(
+    fev_mean      =mean(fev_imp, na.rm=T),
+    sd       =sd(fev, na.rm=T),
+    asthma_number=sum(asthma,na.rm = T),
+    asthma_proprtion  =sum(asthma,na.rm = T)/(sum(asthma,na.rm = T)+sum(!is.na(asthma)))
+  ),by = obesity_level]
+obesity_avg<-
+merge(
+  # Data
+  x     = obesity_avg1,      
+  y     = obesity_avg2, 
+  # List of variables to match
+  by.x  = "obesity_level",
+  by.y  = "obesity_level", 
+  # Which obs to keep?
+  all.x = TRUE,      
+  all.y = FALSE
+  ) 
+```
+```{r}
+#smoke_gas_exposure
+smoke_gas_exposure_avg1<-total%>%count(smoke_gas_exposure)
+smoke_gas_exposure_avg2<-
+    total[ , .(
+    fev_mean      =mean(fev_imp, na.rm=T),
+    sd       =sd(fev, na.rm=T),
+    asthma_number=sum(asthma,na.rm = T),
+    asthma_proprtion  =sum(asthma,na.rm = T)/(sum(asthma,na.rm = T)+sum(!is.na(asthma)))
+  ),by = smoke_gas_exposure]
+smoke_gas_exposure_avg<-
+merge(
+  # Data
+  x     = smoke_gas_exposure_avg1,      
+  y     = smoke_gas_exposure_avg2, 
+  # List of variables to match
+  by.x  = "smoke_gas_exposure",
+  by.y  = "smoke_gas_exposure", 
+  # Which obs to keep?
+  all.x = TRUE,      
+  all.y = FALSE
+  ) 
+```
+##second part. 
+The primary questions of interest are: 1. What is the association between BMI and FEV (forced expiratory volume)? 2. What is the association between smoke and gas exposure and FEV? 3. What is the association between PM2.5 exposure and FEV?
+
+Follow the EDA checklist from week 3 and the previous assignment. Be sure to focus on the key variables. Visualization Create the following figures and interpret them. Be sure to include easily understandable axes, titles, and legends.
+#EDA Step0-1.Check the dimensions, headers, footers. How many columns, rows are there?
+```{r}
+dim(total)
+head(total)
+tail(total)
+```
+#steo0-2take a look of the varaible
+```{r}
+str(total)
+```                                                       
+#Figure1.Facet plot showing scatterplots with regression lines of BMI vs FEV by “townname”.
+```{r}
+total[!is.na(townname)] %>%
+  ggplot(mapping = aes(x = bmi_imp, y = fev_imp, color = townname, linetype = townname)) +ggtitle("the scatterplot of Bmi Vs. Fev from different townname ")+
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE, col = "black")
+
+```
+from the scatterplot above we can see that individual lives in different town has a different in increasing values ,but they are all the bmi is potively associated with the fev_mean
+#Figure2.Stacked histograms of FEV by BMI category and FEV by smoke/gas exposure. Use different color schemes than the ggplot default.
+```{r}
+ggplot(total, aes(fev_imp, fill = obesity_level)) +
+  geom_histogram(binwidth = 500) +ggtitle("The Stacked histograms of FEV by BMI category")
+```
+```{r}
+ggplot(total, aes(fev_imp, fill = smoke_gas_exposure)) +
+  geom_histogram(binwidth = 500) +ggtitle("The Stacked histograms of FEV by second hand smoke and gas stove level")
+```
+due to the graph above, we could not see very clearly since the overall number of the 'normal' bmi category. which means that the histogram maybe is not a very great choice for that. 
+##Figure3.Barchart of BMI by smoke/gas exposure.
+```{r}
+ggplot(data=total, aes(x=smoke_gas_exposure, y=bmi_imp)) +
+  geom_bar(stat="identity") 
+```
+gas stove on would but no second hand smoke may lead to the highest fev, then is no gas stove, no scond hand smoke. gas stove on may have a conflict effect with second hand smoking on fev mean.
+#Figure4.Statistical summary graphs of FEV by BMI and FEV by smoke/gas exposure category.
+```{r}
+obesity_avg[!is.na(fev_mean)]%>%
+  ggplot(mapping = aes(x=obesity_level,y=fev_mean)) + stat_summary(fun.data = mean_sdl,geom="errorbar")
+
+```
+
+```{r}
+
+smoke_gas_exposure_avg[!is.na(fev_mean)]%>%
+  ggplot(mapping = aes(x=smoke_gas_exposure,y=fev_mean)) + stat_summary(fun.data = mean_sdl,geom="errorbar")
+
+
+```  
+from the two figure above, we can FIRST, the obesity level is associated with the fev. see that the second_hand smoking and gas_stove is related to the BMI
+#Figure5.A leaflet map showing the concentrations of PM2.5 mass in each of the CHS communities.
+```{r}
+#generating a color palette
+library(leaflet)
+pm25_mass.pal <- colorNumeric(c('darkgreen','goldenrod'), domain=total$pm25_mass)
+pm25_mass.pal
+```                                                                                                                                                                                                      
+```{r}
+pm25map <- leaflet(total) %>%
+# The looks of the Map
+addProviderTiles('CartoDB.Positron') %>%
+# Some circles
+addCircles(
+lat = ~lat, lng=~lon,
+# HERE IS OUR PAL!
+label = ~paste0(round(pm25_mass,2), ' C'), color = ~ pm25_mass.pal(pm25_mass),
+opacity = 1, fillOpacity = 1, radius = 500
+) %>%
+# And a pretty legend
+addLegend('bottomleft', pal=pm25_mass.pal, values=total$pm25_mass,
+title='pm2.5 concentration', opacity=1)
+pm25map
+```
+due to the map above, we could see that the pm2.5_mass concentration is centered around Los Angeles, San Bernadino.
+
+#Figure6.Choose a visualization to examine whether PM2.5 mass is associated with FEV.
+```{r}
+total %>%
+ggplot(mapping = aes(x = fev_imp, y = pm25_mass)) +
+geom_point() +
+geom_smooth(method = lm, se = FALSE, col = "black")
+
+```
+#conclusion:
+   scatterplot is the best way to show 2 differnt continuouse variable. 
+   
+   
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
