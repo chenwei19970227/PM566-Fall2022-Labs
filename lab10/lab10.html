@@ -369,24 +369,22 @@ pre code {
 </div>
 
 
-<div id="problem-1." class="section level2">
-<h2>Problem 1.</h2>
-<p>Create a n x k matrix of Poisson variables with mean lambda</p>
-<pre class="r"><code># install.packages(c(&quot;RSQLite&quot;, &quot;DBI&quot;))
-
-library(RSQLite)</code></pre>
+<pre class="r"><code>if (!require(RSQLite)) install.packages(c(&quot;RSQLite&quot;))</code></pre>
+<pre><code>## 载入需要的程辑包：RSQLite</code></pre>
 <pre><code>## Warning: 程辑包&#39;RSQLite&#39;是用R版本4.2.2 来建造的</code></pre>
-<pre class="r"><code>library(DBI)
-
-# Initialize a temporary in memory database
+<pre class="r"><code>if (!require(DBI))     install.packages(c(&quot;DBI&quot;))</code></pre>
+<pre><code>## 载入需要的程辑包：DBI</code></pre>
+<pre class="r"><code>library(RSQLite)
+library(DBI)</code></pre>
+<div id="data-setup" class="section level1">
+<h1>Data setup</h1>
+<pre class="r"><code># Initialize a temporary in memory database
 con &lt;- dbConnect(SQLite(), &quot;:memory:&quot;)
-
 # Download tables
 actor &lt;- read.csv(&quot;https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/actor.csv&quot;)
 rental &lt;- read.csv(&quot;https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/rental.csv&quot;)
 customer &lt;- read.csv(&quot;https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/customer.csv&quot;)
 payment &lt;- read.csv(&quot;https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/payment_p2007_01.csv&quot;)
-
 # Copy data.frames to database
 dbWriteTable(con, &quot;actor&quot;, actor)
 dbWriteTable(con, &quot;rental&quot;, rental)
@@ -394,6 +392,13 @@ dbWriteTable(con, &quot;customer&quot;, customer)
 dbWriteTable(con, &quot;payment&quot;, payment)
 dbListTables(con)</code></pre>
 <pre><code>## [1] &quot;actor&quot;    &quot;customer&quot; &quot;payment&quot;  &quot;rental&quot;</code></pre>
+<pre class="sql"><code>PRAGMA table_info(actor)</code></pre>
+<pre class="r"><code>x1</code></pre>
+<pre><code>##   cid        name    type notnull dflt_value pk
+## 1   0    actor_id INTEGER       0         NA  0
+## 2   1  first_name    TEXT       0         NA  0
+## 3   2   last_name    TEXT       0         NA  0
+## 4   3 last_update    TEXT       0         NA  0</code></pre>
 <pre class="sql"><code>PRAGMA table_info(actor)</code></pre>
 <div class="knitsql-table">
 <table>
@@ -444,228 +449,429 @@ dbListTables(con)</code></pre>
 </tbody>
 </table>
 </div>
+<pre class="r"><code>dbGetQuery(con,&quot;
+      PRAGMA table_info(actor)
+           &quot;
+)</code></pre>
+<pre><code>##   cid        name    type notnull dflt_value pk
+## 1   0    actor_id INTEGER       0         NA  0
+## 2   1  first_name    TEXT       0         NA  0
+## 3   2   last_name    TEXT       0         NA  0
+## 4   3 last_update    TEXT       0         NA  0</code></pre>
 </div>
 <div id="exercise-1" class="section level1">
 <h1>Exercise 1</h1>
-<p>Retrive the actor ID, first name and last name for all actors using
+<p>Retrieve the actor ID, first name and last name for all actors using
 the actor table. Sort by last name and then by first name.</p>
-<p>SELECT FROM ORDER by</p>
 <pre class="r"><code>dbGetQuery(con,&quot;
-           SELECT actor_id,first_name,last_name
-           FROM actor
-           ORDER by last_name,first_name
+SELECT   actor_id, first_name, last_name
+FROM    actor
+ORDER by last_name, first_name
+LIMIT 15
            &quot;)</code></pre>
-<pre><code>##     actor_id  first_name    last_name
-## 1         58   CHRISTIAN       AKROYD
-## 2        182      DEBBIE       AKROYD
-## 3         92     KIRSTEN       AKROYD
-## 4        118        CUBA        ALLEN
-## 5        145         KIM        ALLEN
-## 6        194       MERYL        ALLEN
-## 7         76    ANGELINA      ASTAIRE
-## 8        112     RUSSELL       BACALL
-## 9        190      AUDREY       BAILEY
-## 10        67     JESSICA       BAILEY
-## 11       115    HARRISON         BALE
-## 12       187       RENEE         BALL
-## 13        47       JULIA    BARRYMORE
-## 14       158      VIVIEN     BASINGER
-## 15       174     MICHAEL       BENING
-## 16       124    SCARLETT       BENING
-## 17        14      VIVIEN       BERGEN
-## 18       121        LIZA      BERGMAN
-## 19        91 CHRISTOPHER        BERRY
-## 20        60       HENRY        BERRY
-## 21        12        KARL        BERRY
-## 22       189        CUBA        BIRCH
-## 23        25       KEVIN        BLOOM
-## 24       185     MICHAEL       BOLGER
-## 25        37         VAL       BOLGER
-## 26        98       CHRIS      BRIDGES
-## 27        39      GOLDIE        BRODY
-## 28       159       LAURA        BRODY
-## 29       167    LAURENCE      BULLOCK
-## 30        40      JOHNNY         CAGE
-## 31        11        ZERO         CAGE
-## 32       181     MATTHEW       CARREY
-## 33        86        GREG      CHAPLIN
-## 34         3          ED        CHASE
-## 35       176         JON        CHASE
-## 36       183     RUSSELL        CLOSE
-## 37        16        FRED      COSTNER
-## 38       129       DARYL     CRAWFORD
-## 39        26         RIP     CRAWFORD
-## 40        49        ANNE       CRONYN
-## 41       104    PENELOPE       CRONYN
-## 42       105      SIDNEY        CROWE
-## 43        57        JUDE       CRUISE
-## 44       201         TOM       CRUISE
-## 45       203         TOM       CRUISE
-## 46       205         TOM       CRUISE
-## 47       207         TOM       CRUISE
-## 48        80       RALPH         CRUZ
-## 49        81    SCARLETT        DAMON
-## 50         4    JENNIFER        DAVIS
-## 51       101       SUSAN        DAVIS
-## 52       110       SUSAN        DAVIS
-## 53        48     FRANCES    DAY-LEWIS
-## 54        35        JUDY         DEAN
-## 55       143       RIVER         DEAN
-## 56       148       EMILY          DEE
-## 57       138     LUCILLE          DEE
-## 58       107        GINA    DEGENERES
-## 59        41       JODIE    DEGENERES
-## 60       166        NICK    DEGENERES
-## 61        89    CHARLIZE        DENCH
-## 62       123    JULIANNE        DENCH
-## 63       160       CHRIS         DEPP
-## 64       100     SPENCER         DEPP
-## 65       109   SYLVESTER         DERN
-## 66       173        ALAN     DREYFUSS
-## 67        36        BURT      DUKAKIS
-## 68       188        ROCK      DUKAKIS
-## 69       106     GROUCHO        DUNST
-## 70        19         BOB      FAWCETT
-## 71       199       JULIA      FAWCETT
-## 72        10   CHRISTIAN        GABLE
-## 73       165          AL      GARLAND
-## 74       184    HUMPHREY      GARLAND
-## 75       127       KEVIN      GARLAND
-## 76       154       MERYL       GIBSON
-## 77        46      PARKER     GOLDBERG
-## 78       139        EWAN      GOODING
-## 79       191     GREGORY      GOODING
-## 80        71        ADAM        GRANT
-## 81       179          ED      GUINESS
-## 82         1    PENELOPE      GUINESS
-## 83        90        SEAN      GUINESS
-## 84        32         TIM      HACKMAN
-## 85       175     WILLIAM      HACKMAN
-## 86       202         TOM        HANKS
-## 87       204         TOM        HANKS
-## 88       206         TOM        HANKS
-## 89       208         TOM        HANKS
-## 90       152         BEN       HARRIS
-## 91       141        CATE       HARRIS
-## 92        56         DAN       HARRIS
-## 93        97         MEG        HAWKE
-## 94       151    GEOFFREY       HESTON
-## 95       169     KENNETH      HOFFMAN
-## 96        79         MAE      HOFFMAN
-## 97        28       WOODY      HOFFMAN
-## 98       161      HARVEY         HOPE
-## 99       134        GENE      HOPKINS
-## 100      113      MORGAN      HOPKINS
-## 101       50     NATALIE      HOPKINS
-## 102      132        ADAM       HOPPER
-## 103      170        MENA       HOPPER
-## 104       65      ANGELA       HUDSON
-## 105       52      CARMEN         HUNT
-## 106      140      WHOOPI         HURT
-## 107      131        JANE      JACKMAN
-## 108      119      WARREN      JACKMAN
-## 109      146      ALBERT    JOHANSSON
-## 110        8     MATTHEW    JOHANSSON
-## 111       64         RAY    JOHANSSON
-## 112       82       WOODY        JOLIE
-## 113       43        KIRK     JOVOVICH
-## 114      130       GRETA       KEITEL
-## 115      198        MARY       KEITEL
-## 116       74       MILLA       KEITEL
-## 117       55         FAY       KILMER
-## 118      153      MINNIE       KILMER
-## 119      162       OPRAH       KILMER
-## 120       45       REESE       KILMER
-## 121       23      SANDRA       KILMER
-## 122      103     MATTHEW        LEIGH
-## 123        5      JOHNNY LOLLOBRIGIDA
-## 124      157       GRETA       MALDEN
-## 125      136          ED    MANSFIELD
-## 126       22       ELVIS         MARX
-## 127       77        CARY  MCCONAUGHEY
-## 128       70    MICHELLE  MCCONAUGHEY
-## 129      114      MORGAN    MCDORMAND
-## 130      177        GENE     MCKELLEN
-## 131       38         TOM     MCKELLEN
-## 132      128        CATE      MCQUEEN
-## 133       27       JULIA      MCQUEEN
-## 134       42         TOM      MIRANDA
-## 135      178        LISA       MONROE
-## 136      120    PENELOPE       MONROE
-## 137        7       GRACE       MOSTEL
-## 138       99         JIM       MOSTEL
-## 139       61   CHRISTIAN       NEESON
-## 140       62       JAYNE       NEESON
-## 141        6       BETTE    NICHOLSON
-## 142      125      ALBERT        NOLTE
-## 143      150       JAYNE        NOLTE
-## 144      122       SALMA        NOLTE
-## 145      108      WARREN        NOLTE
-## 146       34      AUDREY      OLIVIER
-## 147       15        CUBA      OLIVIER
-## 148       69     KENNETH      PALTROW
-## 149       21     KIRSTEN      PALTROW
-## 150       33       MILLA         PECK
-## 151       30      SANDRA         PECK
-## 152       87     SPENCER         PECK
-## 153       73        GARY         PENN
-## 154      133     RICHARD         PENN
-## 155       88     KENNETH        PESCI
-## 156      171     OLYMPIA     PFEIFFER
-## 157       51        GARY      PHOENIX
-## 158       54    PENELOPE      PINKETT
-## 159       84       JAMES         PITT
-## 160       75        BURT        POSEY
-## 161       93       ELLEN      PRESLEY
-## 162      135        RITA     REYNOLDS
-## 163      142        JADA        RYDER
-## 164      195       JAYNE  SILVERSTONE
-## 165      180        JEFF  SILVERSTONE
-## 166       78     GROUCHO      SINATRA
-## 167       31       SISSY     SOBIESKI
-## 168       44        NICK     STALLONE
-## 169       24     CAMERON       STREEP
-## 170      116         DAN       STREEP
-## 171      192        JOHN       SUVARI
-## 172        9         JOE        SWANK
-## 173      155         IAN        TANDY
-## 174       66        MARY        TANDY
-## 175       59      DUSTIN       TAUTOU
-## 176      193        BURT       TEMPLE
-## 177       53        MENA       TEMPLE
-## 178      149     RUSSELL       TEMPLE
-## 179      200       THORA       TEMPLE
-## 180      126     FRANCES        TOMEI
-## 181       18         DAN         TORN
-## 182       94     KENNETH         TORN
-## 183      102      WALTER         TORN
-## 184       20     LUCILLE        TRACY
-## 185      117       RENEE        TRACY
-## 186       17       HELEN       VOIGHT
-## 187       95       DARYL     WAHLBERG
-## 188        2        NICK     WAHLBERG
-## 189      196        BELA       WALKEN
-## 190       29        ALEC        WAYNE
-## 191      163 CHRISTOPHER         WEST
-## 192      197       REESE         WEST
-## 193      172     GROUCHO     WILLIAMS
-## 194      137      MORGAN     WILLIAMS
-## 195       72        SEAN     WILLIAMS
-## 196       83         BEN       WILLIS
-## 197       96        GENE       WILLIS
-## 198      164    HUMPHREY       WILLIS
-## 199      168        WILL       WILSON
-## 200      147         FAY      WINSLET
-## 201       68         RIP      WINSLET
-## 202      144      ANGELA  WITHERSPOON
-## 203      156         FAY         WOOD
-## 204       13         UMA         WOOD
-## 205       63     CAMERON         WRAY
-## 206      111     CAMERON    ZELLWEGER
-## 207      186       JULIA    ZELLWEGER
-## 208       85      MINNIE    ZELLWEGER</code></pre>
+<pre><code>##    actor_id first_name last_name
+## 1        58  CHRISTIAN    AKROYD
+## 2       182     DEBBIE    AKROYD
+## 3        92    KIRSTEN    AKROYD
+## 4       118       CUBA     ALLEN
+## 5       145        KIM     ALLEN
+## 6       194      MERYL     ALLEN
+## 7        76   ANGELINA   ASTAIRE
+## 8       112    RUSSELL    BACALL
+## 9       190     AUDREY    BAILEY
+## 10       67    JESSICA    BAILEY
+## 11      115   HARRISON      BALE
+## 12      187      RENEE      BALL
+## 13       47      JULIA BARRYMORE
+## 14      158     VIVIEN  BASINGER
+## 15      174    MICHAEL    BENING</code></pre>
+<p>Try in SQL directly:</p>
+<pre class="sql"><code>SELECT   actor_id, first_name, last_name
+FROM    actor
+ORDER by last_name, first_name</code></pre>
+<div class="knitsql-table">
+<table>
+<caption>Displaying records 1 - 10</caption>
+<thead>
+<tr class="header">
+<th align="right">actor_id</th>
+<th align="left">first_name</th>
+<th align="left">last_name</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">58</td>
+<td align="left">CHRISTIAN</td>
+<td align="left">AKROYD</td>
+</tr>
+<tr class="even">
+<td align="right">182</td>
+<td align="left">DEBBIE</td>
+<td align="left">AKROYD</td>
+</tr>
+<tr class="odd">
+<td align="right">92</td>
+<td align="left">KIRSTEN</td>
+<td align="left">AKROYD</td>
+</tr>
+<tr class="even">
+<td align="right">118</td>
+<td align="left">CUBA</td>
+<td align="left">ALLEN</td>
+</tr>
+<tr class="odd">
+<td align="right">145</td>
+<td align="left">KIM</td>
+<td align="left">ALLEN</td>
+</tr>
+<tr class="even">
+<td align="right">194</td>
+<td align="left">MERYL</td>
+<td align="left">ALLEN</td>
+</tr>
+<tr class="odd">
+<td align="right">76</td>
+<td align="left">ANGELINA</td>
+<td align="left">ASTAIRE</td>
+</tr>
+<tr class="even">
+<td align="right">112</td>
+<td align="left">RUSSELL</td>
+<td align="left">BACALL</td>
+</tr>
+<tr class="odd">
+<td align="right">190</td>
+<td align="left">AUDREY</td>
+<td align="left">BAILEY</td>
+</tr>
+<tr class="even">
+<td align="right">67</td>
+<td align="left">JESSICA</td>
+<td align="left">BAILEY</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="exercise-2" class="section level1">
+<h1>Exercise 2</h1>
+<p>Retrive the actor ID, first name, and last name for actors whose last
+name equals ‘WILLIAMS’ or ‘DAVIS’.</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT   actor_id, first_name, last_name
+FROM    actor
+WHERE last_name IN (&#39;WILLIAMS&#39;, &#39;DAVIS&#39;)
+ORDER BY last_name
+&quot;)</code></pre>
+<pre><code>##   actor_id first_name last_name
+## 1        4   JENNIFER     DAVIS
+## 2      101      SUSAN     DAVIS
+## 3      110      SUSAN     DAVIS
+## 4       72       SEAN  WILLIAMS
+## 5      137     MORGAN  WILLIAMS
+## 6      172    GROUCHO  WILLIAMS</code></pre>
+</div>
+<div id="exercise-3" class="section level1">
+<h1>Exercise 3</h1>
+<p>Write a query against the rental table that returns the IDs of the
+customers who rented a film on July 5, 2005 (use the rental.rental_date
+column, and you can use the date() function to ignore the time
+component). Include a single row for each distinct customer ID.</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+      PRAGMA table_info(rental)
+           &quot;
+)</code></pre>
+<pre><code>##   cid         name    type notnull dflt_value pk
+## 1   0    rental_id INTEGER       0         NA  0
+## 2   1  rental_date    TEXT       0         NA  0
+## 3   2 inventory_id INTEGER       0         NA  0
+## 4   3  customer_id INTEGER       0         NA  0
+## 5   4  return_date    TEXT       0         NA  0
+## 6   5     staff_id INTEGER       0         NA  0
+## 7   6  last_update    TEXT       0         NA  0</code></pre>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT DISTINCT customer_id, rental_date
+FROM  rental
+WHERE date(rental_date) = &#39;2005-07-05&#39;
+&quot;)</code></pre>
+<pre><code>##    customer_id         rental_date
+## 1          565 2005-07-05 22:49:24
+## 2          242 2005-07-05 22:51:44
+## 3           37 2005-07-05 22:56:33
+## 4           60 2005-07-05 22:57:34
+## 5          594 2005-07-05 22:59:53
+## 6            8 2005-07-05 23:01:21
+## 7          490 2005-07-05 23:02:37
+## 8          476 2005-07-05 23:05:17
+## 9          322 2005-07-05 23:05:44
+## 10         298 2005-07-05 23:08:53
+## 11         382 2005-07-05 23:11:43
+## 12         138 2005-07-05 23:13:07
+## 13         520 2005-07-05 23:13:22
+## 14         536 2005-07-05 23:13:51
+## 15         114 2005-07-05 23:23:11
+## 16         111 2005-07-05 23:25:54
+## 17         296 2005-07-05 23:29:55
+## 18         586 2005-07-05 23:30:36
+## 19         349 2005-07-05 23:32:49
+## 20         397 2005-07-05 23:33:40
+## 21         369 2005-07-05 23:37:13
+## 22         421 2005-07-05 23:41:08
+## 23         142 2005-07-05 23:44:37
+## 24         169 2005-07-05 23:46:19
+## 25         348 2005-07-05 23:47:30
+## 26         553 2005-07-05 23:50:04
+## 27         295 2005-07-05 23:59:15</code></pre>
+<pre class="r"><code>#dbGetQuery(con,&quot;
+#SELECT customer_id, 
+#     COUNT(*) AS N
+#FROM  rental
+#WHERE date(rental_date) = &#39;2005-07-05&#39;
+#GROUP BY customer_id
+#&quot;)</code></pre>
+</div>
+<div id="exercise-4" class="section level1">
+<h1>Exercise 4</h1>
+<p>Construct a query that retrieves all rows from the payment table
+where the amount is either 1.99, 7.99, 9.99.</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+      PRAGMA table_info(payment)
+&quot;)</code></pre>
+<pre><code>##   cid         name    type notnull dflt_value pk
+## 1   0   payment_id INTEGER       0         NA  0
+## 2   1  customer_id INTEGER       0         NA  0
+## 3   2     staff_id INTEGER       0         NA  0
+## 4   3    rental_id INTEGER       0         NA  0
+## 5   4       amount    REAL       0         NA  0
+## 6   5 payment_date    TEXT       0         NA  0</code></pre>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT *
+FROM payment
+WHERE amount IN (1.99, 7.99, 9.99)
+LIMIT 10
+  &quot;)</code></pre>
+<pre><code>##    payment_id customer_id staff_id rental_id amount               payment_date
+## 1       16050         269        2         7   1.99 2007-01-24 21:40:19.996577
+## 2       16056         270        1       193   1.99 2007-01-26 05:10:14.996577
+## 3       16081         282        2        48   1.99 2007-01-25 04:49:12.996577
+## 4       16103         294        1       595   1.99 2007-01-28 12:28:20.996577
+## 5       16133         307        1       614   1.99 2007-01-28 14:01:54.996577
+## 6       16158         316        1      1065   1.99 2007-01-31 07:23:22.996577
+## 7       16160         318        1       224   9.99 2007-01-26 08:46:53.996577
+## 8       16161         319        1        15   9.99 2007-01-24 23:07:48.996577
+## 9       16180         330        2       967   7.99 2007-01-30 17:40:32.996577
+## 10      16206         351        1      1137   1.99 2007-01-31 17:48:40.996577</code></pre>
+</div>
+<div id="ex-4.2" class="section level1">
+<h1>Ex 4.2</h1>
+<p>Construct a query that retrieves all rows from the payment table
+where the amount is greater than 5</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT *
+FROM payment
+WHERE amount &gt; 5
+LIMIT 10
+&quot;)</code></pre>
+<pre><code>##    payment_id customer_id staff_id rental_id amount               payment_date
+## 1       16052         269        2       678   6.99 2007-01-28 21:44:14.996577
+## 2       16058         271        1      1096   8.99 2007-01-31 11:59:15.996577
+## 3       16060         272        1       405   6.99 2007-01-27 12:01:05.996577
+## 4       16061         272        1      1041   6.99 2007-01-31 04:14:49.996577
+## 5       16068         274        1       394   5.99 2007-01-27 09:54:37.996577
+## 6       16073         276        1       860  10.99 2007-01-30 01:13:42.996577
+## 7       16074         277        2       308   6.99 2007-01-26 20:30:05.996577
+## 8       16082         282        2       282   6.99 2007-01-26 17:24:52.996577
+## 9       16086         284        1      1145   6.99 2007-01-31 18:42:11.996577
+## 10      16087         286        2        81   6.99 2007-01-25 10:43:45.996577</code></pre>
+<p>Greater than 5 and less than 8</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT *
+FROM payment
+WHERE amount &gt; 5   AND amount &lt; 8
+LIMIT 10
+&quot;)</code></pre>
+<pre><code>##    payment_id customer_id staff_id rental_id amount               payment_date
+## 1       16052         269        2       678   6.99 2007-01-28 21:44:14.996577
+## 2       16060         272        1       405   6.99 2007-01-27 12:01:05.996577
+## 3       16061         272        1      1041   6.99 2007-01-31 04:14:49.996577
+## 4       16068         274        1       394   5.99 2007-01-27 09:54:37.996577
+## 5       16074         277        2       308   6.99 2007-01-26 20:30:05.996577
+## 6       16082         282        2       282   6.99 2007-01-26 17:24:52.996577
+## 7       16086         284        1      1145   6.99 2007-01-31 18:42:11.996577
+## 8       16087         286        2        81   6.99 2007-01-25 10:43:45.996577
+## 9       16092         288        2       427   6.99 2007-01-27 14:38:30.996577
+## 10      16094         288        2       565   5.99 2007-01-28 07:54:57.996577</code></pre>
+</div>
+<div id="exercise-5" class="section level1">
+<h1>Exercise 5</h1>
+<p>Retrive all the payment IDs and their amount from the customers whose
+last name is ‘DAVIS’.</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+      PRAGMA table_info(customer)
+&quot;)</code></pre>
+<pre><code>##    cid        name    type notnull dflt_value pk
+## 1    0 customer_id INTEGER       0         NA  0
+## 2    1    store_id INTEGER       0         NA  0
+## 3    2  first_name    TEXT       0         NA  0
+## 4    3   last_name    TEXT       0         NA  0
+## 5    4       email    TEXT       0         NA  0
+## 6    5  address_id INTEGER       0         NA  0
+## 7    6  activebool    TEXT       0         NA  0
+## 8    7 create_date    TEXT       0         NA  0
+## 9    8 last_update    TEXT       0         NA  0
+## 10   9      active INTEGER       0         NA  0</code></pre>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT c.customer_id, c.last_name, p.payment_id, p.amount
+FROM customer AS c INNER JOIN payment AS p
+  ON c.customer_id = p.customer_id
+ WHERE c.last_name == &#39;DAVIS&#39; 
+/* WHERE c.last_name == &#39;DAVIS&#39; */  /* This is a comment*/
+  &quot;)</code></pre>
+<pre><code>##   customer_id last_name payment_id amount
+## 1           6     DAVIS      16685   4.99
+## 2           6     DAVIS      16686   2.99
+## 3           6     DAVIS      16687   0.99</code></pre>
+</div>
+<div id="exercise-6" class="section level1">
+<h1>Exercise 6</h1>
+<div id="section" class="section level2">
+<h2>6.1</h2>
+<p>Count the number of records in rental</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT  COUNT(*) AS count
+FROM  rental
+&quot;)</code></pre>
+<pre><code>##   count
+## 1 16044</code></pre>
+</div>
+<div id="section-1" class="section level2">
+<h2>6.2</h2>
+<p>Use COUNT(*) and GROUP BY to count the number of rentals for each
+customer_id</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT  customer_id, COUNT(*) AS count
+FROM  rental
+GROUP BY customer_id
+LIMIT 8
+&quot;)</code></pre>
+<pre><code>##   customer_id count
+## 1           1    32
+## 2           2    27
+## 3           3    26
+## 4           4    22
+## 5           5    38
+## 6           6    28
+## 7           7    33
+## 8           8    24</code></pre>
+</div>
+<div id="section-2" class="section level2">
+<h2>6.3</h2>
+<p>Sort in descending order</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT  customer_id, COUNT(*) AS count
+FROM  rental
+GROUP BY customer_id
+ORDER BY count DESC
+LIMIT 8
+&quot;)</code></pre>
+<pre><code>##   customer_id count
+## 1         148    46
+## 2         526    45
+## 3         236    42
+## 4         144    42
+## 5          75    41
+## 6         469    40
+## 7         197    40
+## 8         468    39</code></pre>
+</div>
+<div id="section-3" class="section level2">
+<h2>6.4</h2>
+<p>Repeat the previous query but use HAVING to only keep the groups with
+40 or more.</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT  customer_id, COUNT(*) AS count
+FROM  rental
+GROUP BY customer_id
+HAVING count &gt;= 40
+ORDER BY count DESC
+LIMIT 8
+&quot;)</code></pre>
+<pre><code>##   customer_id count
+## 1         148    46
+## 2         526    45
+## 3         236    42
+## 4         144    42
+## 5          75    41
+## 6         469    40
+## 7         197    40</code></pre>
+</div>
+</div>
+<div id="exercise-7" class="section level1">
+<h1>Exercise 7</h1>
+<p>The following query calculates a number of summary statistics for the
+payment table using MAX, MIN, AVG and SUM</p>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT MAX(amount) AS maxpayment,
+       MIN(amount) AS minpayment,
+       AVG(amount) AS avgpayment,
+       SUM(amount) AS sumpayment
+FROM payment
+&quot;)</code></pre>
+<pre><code>##   maxpayment minpayment avgpayment sumpayment
+## 1      11.99       0.99   4.169775    4824.43</code></pre>
+<div id="modify-the-above-query-to-do-those-calculations-for-each-customer_id" class="section level2">
+<h2>7.1 Modify the above query to do those calculations for each
+customer_id</h2>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT customer_id,
+       MAX(amount) AS maxpayment,
+       MIN(amount) AS minpayment,
+       AVG(amount) AS avgpayment,
+       SUM(amount) AS sumpayment
+FROM payment
+GROUP BY customer_id
+LIMIT 5
+&quot;)</code></pre>
+<pre><code>##   customer_id maxpayment minpayment avgpayment sumpayment
+## 1           1       2.99       0.99   1.990000       3.98
+## 2           2       4.99       4.99   4.990000       4.99
+## 3           3       2.99       1.99   2.490000       4.98
+## 4           5       6.99       0.99   3.323333       9.97
+## 5           6       4.99       0.99   2.990000       8.97</code></pre>
+</div>
+<div id="do-those-calculations-for-each-customer_id-and-save-those-for-customers-with-more-than-5-records" class="section level2">
+<h2>7.2 do those calculations for each customer_id and save those for
+customers with more than 5 records</h2>
+<pre class="r"><code>dbGetQuery(con,&quot;
+SELECT customer_id,
+       COUNT(*)    AS  N,
+       MAX(amount) AS maxpayment,
+       MIN(amount) AS minpayment,
+       AVG(amount) AS avgpayment,
+       SUM(amount) AS sumpayment
+FROM payment
+GROUP BY customer_id 
+HAVING N&gt;5
+&quot;)  </code></pre>
+<pre><code>##    customer_id N maxpayment minpayment avgpayment sumpayment
+## 1           19 6       9.99       0.99   4.490000      26.94
+## 2           53 6       9.99       0.99   4.490000      26.94
+## 3          109 7       7.99       0.99   3.990000      27.93
+## 4          161 6       5.99       0.99   2.990000      17.94
+## 5          197 8       3.99       0.99   2.615000      20.92
+## 6          207 6       6.99       0.99   2.990000      17.94
+## 7          239 6       7.99       2.99   5.656667      33.94
+## 8          245 6       8.99       0.99   4.823333      28.94
+## 9          251 6       4.99       1.99   3.323333      19.94
+## 10         269 6       6.99       0.99   3.156667      18.94
+## 11         274 6       5.99       2.99   4.156667      24.94
+## 12         371 6       6.99       0.99   4.323333      25.94
+## 13         506 7       8.99       0.99   4.132857      28.93
+## 14         596 6       6.99       0.99   3.823333      22.94</code></pre>
 <pre class="r"><code># clean up
 dbDisconnect(con)</code></pre>
+</div>
 </div>
 
 
