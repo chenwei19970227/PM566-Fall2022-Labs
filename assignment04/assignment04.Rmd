@@ -1,0 +1,211 @@
+---
+title: "assignemnt 04"
+author: "chen wei"
+date: "2022-10-05"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rvest)
+library(httr)
+library(tidyverse)
+library(stringr)
+library(tidytext)
+library(parallel)
+```
+## FIRST PART(UNFINSHED AND CONFUSED)
+Problem 1: Make sure your code is nice
+```{r}
+# Total row sums
+fun1 <- function(mat) {
+  n <- nrow(mat)
+  ans <- double(n) 
+  for (i in 1:n) {
+    ans[i] <- sum(mat[i, ])
+  }
+  ans
+}
+dat <- matrix(rnorm(200 * 100), nrow = 200)
+
+fun1alt <- function(mat) {
+  # YOUR CODE HERE
+rowSums(mat)
+  }
+
+fun1(dat)
+```
+```{r}
+# Use the data with this code
+set.seed(2315)
+dat <- matrix(rnorm(200 * 100), nrow = 200)
+
+# Test for the first
+microbenchmark::microbenchmark(
+  fun1(dat),
+  fun1alt(dat)
+)
+```
+```{r}
+# Cumulative sum by row
+fun2 <- function(mat) {
+  n <- nrow(mat)
+  k <- ncol(mat)
+  ans <- mat
+  for (i in 1:n) {
+    for (j in 2:k) {
+      ans[i,j] <- mat[i, j] + ans[i, j - 1]
+    }
+  }
+  ans
+}
+fun2(dat)
+```
+```{r}
+fun2alt <- function(mat) {
+  # YOUR CODE HERE
+t(apply(mat,1,cumsum))
+  }
+
+
+# Use the data with this code
+set.seed(2315)
+dat <- matrix(rnorm(200 * 100), nrow = 200)
+
+
+
+# Test for the second
+microbenchmark::microbenchmark(
+  fun2(dat),
+  fun2alt(dat)
+)
+```
+Problem 2: Make things run faster with parallel computing
+```{r}
+sim_pi <- function(n = 1000, i = NULL) {
+  p <- matrix(runif(n*2), ncol = 2)
+  mean(rowSums(p^2) < 1) * 4
+}
+
+# Here is an example of the run
+set.seed(156)
+sim_pi(1000) # 3.132
+```
+```{r}
+# This runs the simulation a 4,000 times, each with 10,000 points
+set.seed(1231)
+system.time({
+  ans <- unlist(lapply(1:4000, sim_pi, n = 10000))
+  print(mean(ans))
+})
+```
+```{r}
+# YOUR CODE HERE
+system.time({
+  # YOUR CODE HERE
+  ans <- unlist(lapply(1:4000, sim_pi, n = 10000))
+  # YOUR CODE HERE
+  print(mean(ans))
+  # YOUR CODE HERE
+})
+```
+```{r}
+library(parallel)
+system.time({
+  cl <- parallel::makePSOCKcluster(2L)
+  parallel::clusterSetRNGStream(cl, 123) # Make sure it is reproducible!
+    ans <- parLapply(cl,1:4000, sim_pi, n = 10000)
+    print(mean(unlist(ans)))
+    parallel::stopCluster(cl)
+})
+```
+## second part
+```{r}
+# install.packages(c("RSQLite", "DBI"))
+
+library(RSQLite)
+library(DBI)
+
+# Initialize a temporary in memory database
+con <- dbConnect(SQLite(), ":memory:")
+
+# Download tables
+film <- read.csv("https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/film.csv")
+film_category <- read.csv("https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/film_category.csv")
+category <- read.csv("https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/category.csv")
+
+# Copy data.frames to database
+dbWriteTable(con, "film", film)
+dbWriteTable(con, "film_category", film_category)
+dbWriteTable(con, "category", category)
+dbListTables(con)
+```
+```{r}
+dbGetQuery(con, "PRAGMA table_info(category)")
+```
+
+
+```{sql, connection=con, output.var = "x1"}
+PRAGMA table_info(film)
+```
+
+Question 1
+How many many movies is there avaliable in each rating catagory.
+```{r}
+Q1<-dbGetQuery(con,"
+SELECT   rating,
+COUNT(*) AS number
+FROM    film
+GROUP BY rating
+           ")
+Q1
+```
+Question 2
+What is the average replacement cost and rental rate for each rating category.
+```{r}
+Q2_1<-dbGetQuery(con,"
+SELECT  rating, replacement_cost,
+COUNT(*) AS count,
+AVG(replacement_cost) AS replacement_cost_mean
+FROM film
+GROUP BY rating
+           ")
+Q2_1
+Q2_2<-dbGetQuery(con,"
+SELECT  rating, rental_rate,
+COUNT(*) AS count,
+AVG(rental_rate) AS rental_rate_mean
+FROM  film
+GROUP BY rating
+           ")
+Q2_2
+
+```
+```{r}
+Q2<-merge(Q2_1, Q2_2, by.x = "rating", by.y = "rating", all = TRUE)
+Q2
+```
+Question 3
+Use table film_category together with film to find the how many films there are with each category ID?
+```{r}
+Q3<-dbGetQuery(con,"
+SELECT  film.film_id, film_category.category_id,
+COUNT(*) AS number
+FROM film
+INNER JOIN film_category  ON film.film_id = film_category.film_id
+GROUP BY category_id
+")
+```
+Question 4
+Incorporate table category into the answer to the previous question to find the name of the most popular category.
+```{r}
+Q4<-dbGetQuery(con,"
+SELECT  film.film_id, film_category.category_id,category.category_id, category.name,
+COUNT(*) AS N
+FROM film
+INNER JOIN film_category  ON film.film_id = film_category.film_id
+INNER JOIN category ON category.category_id = film_category.category_id
+GROUP BY name 
+")
+Q4
+```
+the sport movie is most popular
